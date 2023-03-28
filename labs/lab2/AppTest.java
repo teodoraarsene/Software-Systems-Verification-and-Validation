@@ -1,63 +1,98 @@
 package ssvv.example;
 
-import static org.junit.Assert.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import ssvv.example.domain.Student;
-import ssvv.example.repository.NotaXMLRepo;
 import ssvv.example.repository.StudentXMLRepo;
-import ssvv.example.repository.TemaXMLRepo;
 import ssvv.example.service.Service;
-import ssvv.example.validation.NotaValidator;
 import ssvv.example.validation.StudentValidator;
-import ssvv.example.validation.TemaValidator;
 import ssvv.example.validation.ValidationException;
+
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit test for simple App.
  */
 public class AppTest 
 {
+
+    private StudentXMLRepo studentFileRepository;
+    private StudentValidator studentValidator;
     private Service service;
 
+    @BeforeAll
+    public static void createXML() {
+        File xml = new File("fisiere/studentiTest.xml");
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(xml))) {
+            writer.write("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"no\"?>"+
+                    "<inbox>"+
+
+                    "</inbox>");
+            writer.flush();
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    @BeforeEach
+    public void setup() {
+        this.studentFileRepository = new StudentXMLRepo("fisiere/studentiTest.xml");
+        this.studentValidator = new StudentValidator();
+        this.service = new Service(this.studentFileRepository, this.studentValidator, null, null, null, null);
+    }
+
+    @AfterAll
+    public static void removeXML() {
+        new File("fisiere/studentiTest.xml").delete();
+    }
+
     @Test
-    public void addStudent_validStudentGroup_isAdded() {
-        String filenameStudent = "src/test/resources/Studenti.xml";
-        String filenameTema = "src/test/resources/Teme.xml";
-        String filenameNota = "src/test/resources/Note.xml";
-
-        StudentXMLRepo studentXMLRepository = new StudentXMLRepo(filenameStudent);
-        TemaXMLRepo temaXMLRepository = new TemaXMLRepo(filenameTema);
-        NotaXMLRepo notaXMLRepository = new NotaXMLRepo(filenameNota);
-
-        StudentValidator studentValidator = new StudentValidator();
-        TemaValidator temaValidator = new TemaValidator();
-        NotaValidator notaValidator = new NotaValidator(studentXMLRepository, temaXMLRepository);
-
-        service = new Service(studentXMLRepository, studentValidator, temaXMLRepository, temaValidator, notaXMLRepository, notaValidator);
-
-        Student student = new Student("10", "nume", 10, "email@domeniu.com");
+    public void testValidAddStudent() {
+        Student student = new Student("555", "nume", 10, "email@domeniu.com");
         assertNull(service.addStudent(student));
     }
 
     @Test
-    public void addStudent_invalidStudentGroup_notAdded() {
-        String filenameStudent = "src/test/resources/Studenti.xml";
-        String filenameTema = "src/test/resources/Teme.xml";
-        String filenameNota = "src/test/resources/Note.xml";
+    public void testInvalidStudentId() {
+        Student student = new Student(null, "nume", 10, "email@domeniu.com");
+        assertThrows(NullPointerException.class, () -> service.addStudent(student));
+    }
 
-        StudentXMLRepo studentXMLRepository = new StudentXMLRepo(filenameStudent);
-        TemaXMLRepo temaXMLRepository = new TemaXMLRepo(filenameTema);
-        NotaXMLRepo notaXMLRepository = new NotaXMLRepo(filenameNota);
+    @Test
+    public void testInvalidStudentName_null() {
+        Student newStudent = new Student("1111", null, 999, "aa@yahoo.com");
+        assertThrows(ValidationException.class, () -> this.service.addStudent(newStudent));
+    }
 
-        StudentValidator studentValidator = new StudentValidator();
-        TemaValidator temaValidator = new TemaValidator();
-        NotaValidator notaValidator = new NotaValidator(studentXMLRepository, temaXMLRepository);
+    @Test
+    public void testInvalidStudentName_empty() {
+        Student newStudent = new Student("1111", "", 999, "aa@yahoo.com");
+        assertThrows(ValidationException.class, () -> this.service.addStudent(newStudent));
+    }
 
-        service = new Service(studentXMLRepository, studentValidator, temaXMLRepository, temaValidator, notaXMLRepository, notaValidator);
+    @Test
+    public void testInvalidStudentGroup() {
+        Student student = new Student("666", "nume", -10, "email@domeniu.com");
+        assertThrows(ValidationException.class, () -> service.addStudent(student));
+    }
 
-        Student student = new Student("90", "nume", -10, "email@domeniu.com");
+    @Test
+    public void testInvalidStudentEmail_null() {
+        Student student = new Student("666", "nume", 10, null);
+        assertThrows(ValidationException.class, () -> service.addStudent(student));
+    }
+
+    @Test
+    public void testInvalidStudentEmail_empty() {
+        Student student = new Student("666", "nume", 10, "");
         assertThrows(ValidationException.class, () -> service.addStudent(student));
     }
 }
